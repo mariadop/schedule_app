@@ -25,7 +25,7 @@ const MemberSchema: Schema = new Schema({
 MemberSchema.pre<IMember>('save', async function() {
   if (!this.isModified('password')) return;
   
-  // Zamieniamy hasło na "hash" (bełkot)
+  // changing the password to a hashed version before saving to the database
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

@@ -31,16 +31,12 @@ mongoose.connect(mongoUri)
         color: "#114e16"
       });
       await admin.save();
-      console.log("Stworzono pierwszego członka rodziny!");
+      console.log("Admin utworzony: ", admin);
     }
   })
   .catch((err) => {
     console.error("Błąd połączenia z bazą:", err);
   });
-
-app.get('/', (req, res) => {
-  res.send("Serwer działa!");
-});
 
 // creating new member endpoint
 app.post('/api/register', async (req, res) => {
@@ -103,6 +99,47 @@ app.get('/api/schedule/:memberId', async (req, res) => {
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: "Błąd podczas pobierania kalendarza." });
+  }
+});
+
+// Endpoint to display the schedule of all family members in the calendar view
+app.get('/api/family-status', async (req, res) => {
+  try {
+
+    const status = await Schedule.find()
+      .populate('memberId', 'name color avatar')
+      .sort({ day: 1 });
+
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ message: "Błąd podczas sprawdzania statusu rodziny." });
+  }
+});
+
+// Endpoint to get the current status of family members based on the current time
+app.get('/api/family-now', async (req, res) => {
+  try {
+    const teraz = new Date();
+    
+    const dni = ['poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota', 'niedziela'];
+    const dzisiejszyDzien = dni[teraz.getDay()];
+
+    // 2. Pobieramy aktualną godzinę jako liczbę (np. 14:30 -> 1430)
+    const aktualnaGodzina = teraz.getHours() * 100 + teraz.getMinutes();
+
+    // 3. Szukamy w bazie zadania, które:
+    // - jest dzisiaj
+    // - zaczęło się przed lub teraz (startTime <= aktualnaGodzina)
+    // - jeszcze się nie skończyło (endTime > aktualnaGodzina)
+    const status = await Schedule.find({
+      day: dzisiejszyDzien,
+      startTime: { $lte: aktualnaGodzina },
+      endTime: { $gt: aktualnaGodzina }
+    }).populate('memberId', 'name color avatar');
+
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ message: "Błąd podczas pobierania aktualnego statusu." });
   }
 });
 
