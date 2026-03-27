@@ -5,8 +5,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ITask extends Document {
   memberId: mongoose.Types.ObjectId; // ID osoby z tabeli Family_members
   day: string;          
-  time_start: string;
-  time_end: string; 
+  time_start: number;
+  time_end: number; 
   task: string;        
 }
 
@@ -19,8 +19,8 @@ const ScheduleSchema: Schema = new Schema({
     enum: ['poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota', 'niedziela'] 
   },
   
-  time_start: { type: String, required: true },
-  time_end: { type: String, required: true },
+  time_start: { type: Number, required: true },
+  time_end: { type: Number, required: true },
   task: { type: String, required: true }
 });
 
