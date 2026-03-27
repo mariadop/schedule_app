@@ -72,6 +72,42 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// Endpoint for logging in
+app.post('/api/login', async (req, res) => {
+  try {
+    const { login, password } = req.body;
+
+    // 1. Szukamy użytkownika po loginie
+    const user = await Family_member.findOne({ login });
+
+    if (!user) {
+      return res.status(401).json({ message: "Błędny login lub hasło!" });
+    }
+
+    // 2. Używamy Twojej metody z modelu do sprawdzenia hasła
+    const isMatch = await user.comparePassword(password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: "Błędny login lub hasło!" });
+    }
+
+    // 3. Jeśli wszystko ok, wysyłamy dane użytkownika do Frontendu
+    res.json({
+      message: "Zalogowano pomyślnie!",
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        color: user.color
+      }
+    });
+
+  } catch (error) {
+    console.error("Błąd logowania:", error);
+    res.status(500).json({ message: "Błąd serwera podczas logowania." });
+  }
+});
+
 //endpoint for creating a new task in the calendar
 app.post('/api/schedule', async (req, res) => {
   try {
@@ -133,8 +169,8 @@ app.get('/api/family-now', async (req, res) => {
     // - jeszcze się nie skończyło (endTime > aktualnaGodzina)
     const status = await Schedule.find({
       day: dzisiejszyDzien,
-      startTime: { $lte: aktualnaGodzina },
-      endTime: { $gt: aktualnaGodzina }
+      time_start: { $lte: aktualnaGodzina },
+      time_end: { $gt: aktualnaGodzina }
     }).populate('memberId', 'name color avatar');
 
     res.json(status);
