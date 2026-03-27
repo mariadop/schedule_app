@@ -157,7 +157,7 @@ app.get('/api/family-now', async (req, res) => {
   try {
     const teraz = new Date();
     
-    const dni = ['poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota', 'niedziela'];
+    const dni = ['niedziela', 'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota'];
     const dzisiejszyDzien = dni[teraz.getDay()];
 
     // 2. Pobieramy aktualną godzinę jako liczbę (np. 14:30 -> 1430)
