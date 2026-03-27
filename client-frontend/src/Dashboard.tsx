@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import API from './api';
+import AddTask from './addTask'; // Upewnij się, że nazwa pliku się zgadza (AddTask czy addTask)
 
-// 1. Definiujemy, jak dokładnie wygląda zadanie przychodzące z bazy
 interface Task {
   _id: string;
   task: string;
   day: string;
   time_frame: string;
-  memberId?: {     // Dodajemy ?, bo zadanie może (teoretycznie) nie mieć przypisanej osoby
+  memberId?: {
     name: string;
     color: string;
   };
 }
 
-// 2. Dashboard przyjmuje zalogowanego użytkownika jako "props"
 function Dashboard({ user }: { user: any }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddTask, setShowAddTask] = useState(false); // Stan do pokazywania formularza
 
-  useEffect(() => {
-    // Pobieramy zadania z Twojego endpointu
+  // Funkcja pobierająca dane (wyciągnięta, żeby móc ją odświeżyć po dodaniu taska)
+  const fetchTasks = () => {
     API.get('/family-status')
       .then(res => {
         setTasks(res.data);
@@ -29,6 +29,10 @@ function Dashboard({ user }: { user: any }) {
         console.error("Błąd pobierania zadań:", err);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchTasks();
   }, []);
 
   if (loading) return <div style={{ padding: '20px' }}>Wczytywanie planu dnia...</div>;
@@ -47,13 +51,11 @@ function Dashboard({ user }: { user: any }) {
         {tasks.length > 0 ? (
           tasks.map(t => (
             <div key={t._id} style={{ 
-              // Używamy koloru z bazy, a jeśli go brak - szary (#ccc)
               backgroundColor: t.memberId?.color || '#ccc', 
               color: 'white', 
               padding: '20px', 
               borderRadius: '12px',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              transition: 'transform 0.2s'
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
             }}>
               <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '5px' }}>
                 {t.day.toUpperCase()} | {t.time_frame}
@@ -69,13 +71,15 @@ function Dashboard({ user }: { user: any }) {
         )}
       </div>
 
-      {/* Przycisk akcji */}
+      <hr style={{ margin: '40px 0', border: '0.5px solid #eee' }} />
+
+      {/* Przycisk akcji - teraz przełącza widoczność formularza */}
       <button 
-        onClick={() => alert("Tu otworzymy formularz dodawania zadania!")}
+        onClick={() => setShowAddTask(!showAddTask)}
         style={{ 
-          marginTop: '30px', 
+          marginBottom: '20px',
           padding: '12px 24px', 
-          backgroundColor: '#2c3e50', 
+          backgroundColor: showAddTask ? '#e74c3c' : '#2c3e50', 
           color: 'white', 
           border: 'none', 
           borderRadius: '8px',
@@ -83,8 +87,19 @@ function Dashboard({ user }: { user: any }) {
           fontWeight: 'bold'
         }}
       >
-        + Dodaj nowe zajęcie
+        {showAddTask ? "✖ Zamknij formularz" : "+ Dodaj nowe zajęcie"}
       </button>
+
+      {/* FORMULARZ ADD TASK - pojawia się tutaj */}
+      {showAddTask && (
+        <AddTask 
+          user={user} 
+          onTaskAdded={() => {
+            setShowAddTask(false); // zamknij formularz
+            fetchTasks();          // odśwież listę kafelków bez przeładowania strony!
+          }} 
+        />
+      )}
     </div>
   );
 }
