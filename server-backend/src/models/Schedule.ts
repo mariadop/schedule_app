@@ -11,7 +11,7 @@ export interface ITask extends Document {
 }
 
 const ScheduleSchema: Schema = new Schema({
- memberId: { type: mongoose.Schema.Types.ObjectId, ref: 'Family_member', required: true },
+ memberId: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
   
   day: { 
     type: String, 
