@@ -1,104 +1,110 @@
 import React, { useEffect, useState } from 'react';
 import API from './api';
-import AddTask from './addTask'; // Upewnij się, że nazwa pliku się zgadza (AddTask czy addTask)
+import AddTask from './addTask';
 
 interface Task {
   _id: string;
   task: string;
   day: string;
-  time_frame: string;
-  memberId?: {
-    name: string;
-    color: string;
-  };
+  time_start: number; // Zmienione z time_frame
+  time_end: number;   // Dodane
+  memberId?: { _id: string; name: string; color: string; };
 }
 
 function Dashboard({ user }: { user: any }) {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [currentStatus, setCurrentStatus] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddTask, setShowAddTask] = useState(false); // Stan do pokazywania formularza
+  const [showAddTask, setShowAddTask] = useState(false);
 
-  // Funkcja pobierająca dane (wyciągnięta, żeby móc ją odświeżyć po dodaniu taska)
-  const fetchTasks = () => {
-    API.get('/family-status')
-      .then(res => {
-        setTasks(res.data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Błąd pobierania zadań:", err);
-        setLoading(false);
-      });
+  const fetchData = async () => {
+    try {
+      // Pobieramy obie rzeczy na raz
+      const [statusRes, nowRes] = await Promise.all([
+        API.get('/family-status'),
+        API.get('/family-now')
+      ]);
+      setAllTasks(statusRes.data);
+      setCurrentStatus(nowRes.data);
+      setLoading(false);
+    } catch (err) {
+      console.error("Błąd pobierania danych:", err);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchTasks();
+    fetchData();
+    // Opcjonalnie: odświeżaj status "na żywo" co minutę
+    const interval = setInterval(() => API.get('/family-now').then(res => setCurrentStatus(res.data)), 60000);
+    return () => clearInterval(interval);
   }, []);
 
-  if (loading) return <div style={{ padding: '20px' }}>Wczytywanie planu dnia...</div>;
+  // Filtrujemy zadania, aby wyciągnąć tylko te należące do zalogowanego użytkownika
+  const myTasks = allTasks.filter(t => t.memberId?._id === user.id);
+
+  if (loading) return <div style={{ padding: '20px' }}>Ładowanie harmonogramu...</div>;
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h2 style={{ color: '#333' }}>🏠 Rodzinny Harmonogram</h2>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', color: '#fff', backgroundColor: '#1a1c23' }}>
       
-      {/* Siatka z kafelkami */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', 
-        gap: '20px',
-        marginTop: '20px'
-      }}>
-        {tasks.length > 0 ? (
-          tasks.map(t => (
-            <div key={t._id} style={{ 
-              backgroundColor: t.memberId?.color || '#ccc', 
-              color: 'white', 
-              padding: '20px', 
-              borderRadius: '12px',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-            }}>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '5px' }}>
-                {t.day.toUpperCase()} | {t.time_frame}
-              </div>
-              <h3 style={{ margin: '10px 0' }}>{t.task}</h3>
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: '10px', fontSize: '0.9rem' }}>
-                👤 {t.memberId?.name || 'Nieprzypisane'}
+      {/* SEKCJA 1: MOJE ZAJĘCIA (NA GÓRZE) */}
+      <section>
+        <h2 style={{ borderBottom: `2px solid ${user.color}` }}>⭐ Moje zajęcia</h2>
+        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', padding: '10px 0' }}>
+          {myTasks.length > 0 ? myTasks.map(t => (
+            <div key={t._id} style={{ backgroundColor: user.color, padding: '10px', borderRadius: '8px', minWidth: '150px' }}>
+              <strong>{t.task}</strong>
+              <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+               {t.day.toUpperCase()} | {t.time_start} - {t.time_end}
               </div>
             </div>
-          ))
-        ) : (
-          <p style={{ color: '#666' }}>Brak zaplanowanych zadań w kalendarzu.</p>
-        )}
+          )) : <p>Nie masz jeszcze przypisanych zadań.</p>}
+        </div>
+      </section>
+
+      {/* SEKCJA 2: CO ROBIMY TERAZ (STATUS NA ŻYWO) */}
+      <section style={{ marginTop: '30px' }}>
+        <h2>🏠 Co robimy teraz?</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
+          {currentStatus.length > 0 ? currentStatus.map(s => (
+            <div key={s._id} style={{ borderLeft: `5px solid ${s.memberId?.color}`, padding: '10px', backgroundColor: '#2d303e' }}>
+              <strong>{s.memberId?.name}</strong>: {s.task}
+            </div>
+          )) : <p>Nikt nie ma teraz zaplanowanych zajęć.</p>}
+        </div>
+      </section>
+
+      {/* SEKCJA 3: KALENDARZ RODZINNY (WSZYSCY) */}
+      <section style={{ marginTop: '30px' }}>
+        <h2>📅 Kalendarz rodzinny</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px' }}>
+          {allTasks.map(t => (
+            <div key={t._id} style={{ backgroundColor: t.memberId?.color || '#444', padding: '15px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+               {t.day.toUpperCase()} | {t.time_start} - {t.time_end}
+              </div>
+              <h3>{t.task}</h3>
+              <div style={{ fontSize: '0.9rem' }}>👤 {t.memberId?.name}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PRZYCISK DO FORMULARZA */}
+      <div style={{ textAlign: 'center', marginTop: '40px' }}>
+        <button 
+          onClick={() => setShowAddTask(!showAddTask)}
+          style={{ padding: '15px 30px', backgroundColor: '#3b4b61', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          {showAddTask ? "Zamknij formularz" : "+ Dodaj nowe zajęcie"}
+        </button>
       </div>
 
-      <hr style={{ margin: '40px 0', border: '0.5px solid #eee' }} />
-
-      {/* Przycisk akcji - teraz przełącza widoczność formularza */}
-      <button 
-        onClick={() => setShowAddTask(!showAddTask)}
-        style={{ 
-          marginBottom: '20px',
-          padding: '12px 24px', 
-          backgroundColor: showAddTask ? '#e74c3c' : '#2c3e50', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontWeight: 'bold'
-        }}
-      >
-        {showAddTask ? "✖ Zamknij formularz" : "+ Dodaj nowe zajęcie"}
-      </button>
-
-      {/* FORMULARZ ADD TASK - pojawia się tutaj */}
       {showAddTask && (
-        <AddTask 
-          user={user} 
-          onTaskAdded={() => {
-            setShowAddTask(false); // zamknij formularz
-            fetchTasks();          // odśwież listę kafelków bez przeładowania strony!
-          }} 
-        />
+        <div style={{ marginTop: '20px', backgroundColor: '#2d303e', padding: '20px', borderRadius: '15px' }}>
+          <AddTask user={user} onTaskAdded={() => { setShowAddTask(false); fetchData(); }} />
+        </div>
       )}
     </div>
   );
